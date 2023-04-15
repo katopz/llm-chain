@@ -8,14 +8,9 @@ use std::path::PathBuf;
 pub struct Infer {
     pub model_load: ModelLoad,
 
-    pub prompt_file: PromptFile,
-
     pub generate: Generate,
 
     /// The prompt to feed the generator.
-    ///
-    /// If used with `--prompt-file`/`-f`, the prompt from the file will be used
-    /// and `{{PROMPT}}` will be replaced with the value of `--prompt`/`-p`.
     pub prompt: Option<String>,
 
     /// Saves an inference session at the given path. The same session can then be
@@ -152,9 +147,6 @@ impl Generate {
         }
     }
 }
-fn parse_bias(s: &str) -> Result<TokenBias, String> {
-    s.parse()
-}
 
 #[derive(Debug)]
 pub struct ModelLoad {
@@ -182,9 +174,6 @@ impl ModelLoad {
                 match progress {
                     LoadProgress::HyperparametersLoaded(hparams) => {
                         println!("Loaded hyperparameters {hparams:#?}")
-                    }
-                    LoadProgress::BadToken { index } => {
-                        println!("Warning: Bad token in vocab at index {index}")
                     }
                     LoadProgress::ContextSize { bytes } => println!(
                         "ggml ctx size = {:.2} MB\n",
@@ -232,40 +221,6 @@ impl ModelLoad {
         println!("Model fully loaded!");
 
         (model, vocabulary)
-    }
-}
-
-#[derive(Debug)]
-pub struct PromptFile {
-    /// A file to read the prompt from.
-    pub prompt_file: Option<String>,
-}
-impl PromptFile {
-    pub fn contents(&self) -> Option<String> {
-        match &self.prompt_file {
-            Some(path) => {
-                match std::fs::read_to_string(path) {
-                    Ok(mut prompt) => {
-                        // Strip off the last character if it's exactly newline. Also strip off a single
-                        // carriage return if it's there. Since String must be valid UTF-8 it should be
-                        // guaranteed that looking at the string as bytes here is safe: UTF-8 non-ASCII
-                        // bytes will always the high bit set.
-                        if matches!(prompt.as_bytes().last(), Some(b'\n')) {
-                            prompt.pop();
-                        }
-                        if matches!(prompt.as_bytes().last(), Some(b'\r')) {
-                            prompt.pop();
-                        }
-                        Some(prompt)
-                    }
-                    Err(err) => {
-                        println!("Could not read prompt file at {path}. Error {err}");
-                        std::process::exit(1);
-                    }
-                }
-            }
-            _ => None,
-        }
     }
 }
 

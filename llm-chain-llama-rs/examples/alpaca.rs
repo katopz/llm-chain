@@ -1,9 +1,9 @@
-use std::{env, path::Path};
+use std::path::Path;
 
 use llm_chain::{traits::StepExt, Parameters};
 // use llm_chain_llama_rs::{new_instruct_template, Executor, Step};
 use llm_chain_llama_rs::{
-    cli_args::{self, Generate, Infer, ModelLoad, PromptFile},
+    cli_args::{Generate, Infer, ModelLoad},
     infer,
 };
 
@@ -35,7 +35,6 @@ async fn hello() {
             model_path: "/Users/katopz/git/katopz/ggml-alpaca-7b-q4.bin".to_string(),
             num_ctx_tokens: 2048usize,
         },
-        prompt_file: PromptFile { prompt_file: None },
         generate: Generate {
             num_threads: None,
             num_predict: None,

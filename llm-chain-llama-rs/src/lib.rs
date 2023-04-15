@@ -52,7 +52,7 @@ pub fn infer(args: &cli_args::Infer) {
     let prompt = process_prompt(prompt, &_prompt);
     let inference_session_params = args.generate.inference_session_parameters();
     let (model, vocabulary) = args.model_load.load();
-    let (mut session, session_loaded) = load_session_from_disk(
+    let (mut session, session_loaded) = snapshot::read_or_create_session(
         &model,
         args.persist_session.as_deref(),
         args.generate.load_session.as_deref(),
@@ -91,62 +91,7 @@ pub fn infer(args: &cli_args::Infer) {
 
     if let Some(session_path) = args.save_session.as_ref().or(args.persist_session.as_ref()) {
         // Write the memory to the cache file
-        // SAFETY: no other model functions used inside the block
-        unsafe {
-            match snapshot::write_to_disk(&session.get_snapshot(), session_path) {
-                Ok(_) => {
-                    println!("Successfully wrote session to {session_path:?}");
-                }
-                Err(err) => {
-                    println!("Could not write session at {session_path:?}: {err}");
-                    std::process::exit(1);
-                }
-            }
-        }
-    }
-}
-
-fn load_prompt_file_with_prompt(
-    prompt_file: &cli_args::PromptFile,
-    prompt: Option<&str>,
-) -> String {
-    if let Some(prompt_file) = prompt_file.contents() {
-        if let Some(prompt) = prompt {
-            process_prompt(&prompt_file, prompt)
-        } else {
-            prompt_file
-        }
-    } else if let Some(prompt) = prompt {
-        prompt.to_owned()
-    } else {
-        std::process::exit(1);
-    }
-}
-
-pub fn load_session_from_disk(
-    model: &Model,
-    persist_session: Option<&Path>,
-    load_session: Option<&Path>,
-    inference_session_params: InferenceSessionParameters,
-) -> (InferenceSession, bool) {
-    fn load_snapshot_from_disk(model: &Model, path: &Path) -> InferenceSession {
-        let snapshot = snapshot::load_from_disk(path);
-        match snapshot.and_then(|snapshot| model.session_from_snapshot(snapshot)) {
-            Ok(session) => {
-                println!("Loaded inference session from {path:?}");
-                session
-            }
-            Err(err) => {
-                eprintln!("Could not load inference session. Error: {err}");
-                std::process::exit(1);
-            }
-        }
-    }
-
-    match (persist_session, load_session) {
-        (Some(path), _) if path.exists() => (load_snapshot_from_disk(model, path), true),
-        (_, Some(path)) => (load_snapshot_from_disk(model, path), true),
-        _ => (model.start_session(inference_session_params), false),
+        snapshot::write_session(session, session_path);
     }
 }
 
